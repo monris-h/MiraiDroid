@@ -11,6 +11,19 @@ import time
 import asyncio
 import logging
 import subprocess
+
+
+# ============================================================================
+# PLATFORM-COMPATIBLE SYSTEM TOOLS
+# ============================================================================
+import platform
+
+def is_windows():
+    return platform.system() == "Windows"
+
+def is_android():
+    return platform.system() == "Linux" and os.path.exists("/data/data/com.termux")
+
 import signal
 import hashlib
 import base64
@@ -564,26 +577,55 @@ class ProcessManager:
     @staticmethod
     def list():
         try:
-            result = subprocess.check_output("ps aux --sort=-pcpu | head -15", shell=True).decode()
-            lines = result.split("\n")
-            header = "USER\tPID\t%CPU\t%MEM\tCOMMAND"
-            return f"```\n{header}\n" + "\n".join(lines[1:11]) + "\n```"
+            if is_windows():
+                result = subprocess.check_output("tasklist /FO TABLE /NH", shell=True).decode()
+                lines = [l for l in result.split("\n") if l.strip()][:15]
+                header = "NAME\t\tPID\tMEM"
+                return f"```\n{header}\n" + "\n".join(lines[:10]) + "\n```"
+            else:
+                result = subprocess.check_output("ps aux --sort=-pcpu | head -15", shell=True).decode()
+                lines = result.split("\n")
+                header = "USER\tPID\t%CPU\t%MEM\tCOMMAND"
+                return f"```\n{header}\n" + "\n".join(lines[1:11]) + "\n```"
         except Exception as e:
             return f"❌ Error: {e}"
     
     @staticmethod
     def kill(pid):
         try:
-            subprocess.run(f"kill -9 {pid}", shell=True)
-            return f"✅ Proceso {pid} matado"
+            if is_windows():
+                subprocess.run(f"taskkill /F /PID {pid}", shell=True, capture_output=True)
+                return f"✅ Proceso {pid} terminado (Windows)"
+            else:
+                subprocess.run(f"kill -9 {pid}", shell=True)
+                return f"✅ Proceso {pid} matado"
         except Exception as e:
             return f"❌ Error: {e}"
     
     @staticmethod
     def top(limit=5):
         try:
-            result = subprocess.check_output(f"ps aux --sort=-pcpu | head {limit + 1}", shell=True).decode()
-            return f"```\n{result}\n```"
+            if is_windows():
+                cpu = subprocess.check_output("wmic cpu get loadpercentage /format:list", shell=True, stderr=subprocess.DEVNULL).decode()
+                cpu_pct = "N/A"
+                for line in cpu.split("\n"):
+                    if "LoadPercentage" in line:
+                        cpu_pct = line.split("=")[-1].strip() + "%"
+                
+                mem_cmd = subprocess.check_output("wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /format:list", shell=True).decode()
+                free_mem, total_mem = 0, 1
+                for line in mem_cmd.split("\n"):
+                    if "FreePhysicalMemory" in line:
+                        free_mem = int(line.split("=")[-1].strip())
+                    if "TotalVisibleMemorySize" in line:
+                        total_mem = int(line.split("=")[-1].strip())
+                used_pct = int((1 - free_mem/total_mem) * 100)
+                
+                result = f"Windows System:\nCPU: {cpu_pct}\nMemory: {used_pct}%"
+                return f"```\n{result}\n```"
+            else:
+                result = subprocess.check_output(f"ps aux --sort=-pcpu | head {limit + 1}", shell=True).decode()
+                return f"```\n{result}\n```"
         except Exception as e:
             return f"❌ Error: {e}"
 
@@ -639,18 +681,35 @@ network_tools = NetworkTools()
 class BatteryMonitor:
     @staticmethod
     def status():
-        try:
-            result = subprocess.check_output("termux-battery-status", shell=True).decode()
+        if is_android():
             try:
-                data = json.loads(result)
-                pct = data.get("percentage", "?")
-                status = data.get("status", "?")
-                temp = data.get("temperature", "?")
-                return f"🔋 *Batería*\n• {pct}%\n• Status: {status}\n• Temp: {temp}°C"
-            except:
-                return result[:4000]
-        except Exception as e:
-            return f"❌ Error: {e}"
+                result = subprocess.check_output("termux-battery-status", shell=True).decode()
+                try:
+                    data = json.loads(result)
+                    pct = data.get("percentage", "?")
+                    status = data.get("status", "?")
+                    temp = data.get("temperature", "?")
+                    return f"🔋 *Batería*\n• {pct}%\n• Status: {status}\n• Temp: {temp}°C"
+                except:
+                    return result[:4000]
+            except Exception as e:
+                return f"❌ Error: {e}"
+        elif is_windows():
+            try:
+                result = subprocess.check_output("wmic path Win32_Battery get EstimatedChargeRemaining,Status,Temperature /format:list", shell=True).decode()
+                pct, status, temp = "?", "?", "?"
+                for line in result.split("\n"):
+                    if "EstimatedChargeRemaining" in line:
+                        pct = line.split("=")[-1].strip()
+                    if "Status" in line:
+                        status = line.split("=")[-1].strip()
+                    if "Temperature" in line:
+                        temp = line.split("=")[-1].strip()
+                return f"🔋 *Batería (Windows)*\n• {pct}%\n• Status: {status}\n• Temp: {temp}°C"
+            except Exception as e:
+                return f"❌ Error: {e}"
+        else:
+            return "🔋 _Batería solo disponible en Android/Windows_"
 
 battery_monitor = BatteryMonitor()
 
@@ -660,12 +719,22 @@ battery_monitor = BatteryMonitor()
 class AppManager:
     @staticmethod
     def list_installed():
-        try:
-            result = subprocess.check_output("pm list packages -3", shell=True).decode()
-            apps = result.replace("package:", "").split("\n")[:30]
-            return f"📱 *Apps instaladas (30 primeras):*\n\n" + "\n".join([f"• {a}" for a in apps if a])
-        except Exception as e:
-            return f"❌ Error: {e}"
+        if is_android():
+            try:
+                result = subprocess.check_output("pm list packages -3", shell=True).decode()
+                apps = result.replace("package:", "").split("\n")[:30]
+                return f"📱 *Apps instaladas (30 primeras):*\n\n" + "\n".join([f"• {a}" for a in apps if a])
+            except Exception as e:
+                return f"❌ Error: {e}"
+        elif is_windows():
+            try:
+                result = subprocess.check_output("wmic product get name /format:list", shell=True, stderr=subprocess.DEVNULL).decode()
+                apps = [line.replace("Name=", "").strip() for line in result.split("\n") if "Name=" in line][:30]
+                return f"📱 *Programas instalados (30 primeros):*\n\n" + "\n".join([f"• {a}" for a in apps if a])
+            except Exception as e:
+                return f"❌ Error: {e}"
+        else:
+            return "📱 _Apps solo en Android/Windows_"
 
 app_manager = AppManager()
 
@@ -951,14 +1020,54 @@ class HealthChecker:
     async def check(self, app):
         try:
             alerts = []
-            result = subprocess.check_output("df -h / | tail -1 | awk '{print $5}'", shell=True).decode().strip()
-            disk_pct = int(result.replace("%", ""))
-            if disk_pct >= self.thresholds["disk_percent"]:
-                alerts.append(f"💾 Disco al {disk_pct}%!")
             
-            result = subprocess.check_output("free | grep Mem | awk '{print int($3/$2*100)}'", shell=True).decode().strip()
-            if result.isdigit() and int(result) >= self.thresholds["mem_percent"]:
-                alerts.append(f"📊 RAM al {result}%!")
+            # Check disk
+            if is_windows():
+                try:
+                    result = subprocess.check_output("wmic logicaldisk get size,freespace,caption /format:list", shell=True).decode()
+                    for line in result.split("\n"):
+                        if "FreeSpace" in line and "C:" in result:
+                            freespace = int(line.split("=")[-1].strip())
+                            totalspace = 0
+                            for l2 in result.split("\n"):
+                                if "Size" in l2 and "FreeSpace" not in l2:
+                                    try:
+                                        totalspace = int(l2.split("=")[-1].strip())
+                                        break
+                                    except:
+                                        pass
+                            if totalspace > 0:
+                                disk_pct = int((1 - freespace/totalspace) * 100)
+                                if disk_pct >= self.thresholds["disk_percent"]:
+                                    alerts.append(f"💾 Disco al {disk_pct}%!")
+                            break
+                except:
+                    pass
+            else:
+                result = subprocess.check_output("df -h / | tail -1 | awk '{print $5}'", shell=True).decode().strip()
+                disk_pct = int(result.replace("%", ""))
+                if disk_pct >= self.thresholds["disk_percent"]:
+                    alerts.append(f"💾 Disco al {disk_pct}%!")
+            
+            # Check memory
+            if is_windows():
+                try:
+                    mem = subprocess.check_output("wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /format:list", shell=True).decode()
+                    free_mem, total_mem = 0, 1
+                    for line in mem.split("\n"):
+                        if "FreePhysicalMemory" in line:
+                            free_mem = int(line.split("=")[-1].strip())
+                        if "TotalVisibleMemorySize" in line:
+                            total_mem = int(line.split("=")[-1].strip())
+                    mem_pct = int((1 - free_mem/total_mem) * 100)
+                    if mem_pct >= self.thresholds["mem_percent"]:
+                        alerts.append(f"📊 RAM al {mem_pct}%!")
+                except:
+                    pass
+            else:
+                result = subprocess.check_output("free | grep Mem | awk '{print int($3/$2*100)}'", shell=True).decode().strip()
+                if result.isdigit() and int(result) >= self.thresholds["mem_percent"]:
+                    alerts.append(f"📊 RAM al {result}%!")
             
             if alerts:
                 msg = "🚨 *Alertas:*\n\n" + "\n".join(alerts)
