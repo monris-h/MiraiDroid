@@ -1,0 +1,46 @@
+# Environment
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+
+# Logs
+logs/
+*.log
+
+# Data
+data/*.json
+data/*.db
+!data/.gitkeep
+
+# Backups
+backups/
+*.backup
+
+# Downloads
+downloads/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Termux specific
+.termux/
+
+# OpenClaw (no compartir)
+.openclaw/
