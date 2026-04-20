@@ -5,7 +5,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from src import is_owner, memory, activity_log, stats, rate_limiter, ALIASES, file_manager
 from services.ai import AI
-from services.web_search import web_search
+from services.web_search import WebSearch as web_search
 
 
 class AutonomousRouter:
@@ -54,7 +54,6 @@ class AutonomousRouter:
         return None
 
     async def handle_search(self, text, update, ctx):
-        from services.web_search import web_search
         query = text.lower()
 
         is_self_improve = any(kw in query for kw in ["mejorarte a ti mismo", "mejorar tu", "mejoras para ti", "como mejorarte", "improve yourself", "improve your", "mejora tu codigo", "mejora ti mismo"])

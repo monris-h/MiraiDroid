@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 class Database:
     def __init__(self):
         self.db_path = BASE_DIR / "data" / "miraidroid.db"
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.create_tables()
 

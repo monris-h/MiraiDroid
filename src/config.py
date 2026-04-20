@@ -4,8 +4,10 @@ Configuración central - carga .env y credenciales
 import os
 from pathlib import Path
 
-BASE_DIR = Path.home() / "agent"
-ENV_FILE = BASE_DIR / ".env"
+# Project root - donde está main.py y miraidroid.py
+PROJECT_ROOT = Path(__file__).parent.parent.resolve()
+ENV_FILE = PROJECT_ROOT / ".env"
+BASE_DIR = PROJECT_ROOT
 VERSION = "5.8.0"
 
 def load_env():

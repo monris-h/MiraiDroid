@@ -22,7 +22,7 @@ def signal_handler(sig, frame):
 
 
 if __name__ == "__main__":
-    print(f"🛡️ MiraiDroid v{VERSION} starting...")
+    print(f"[MiraiDroid] v{VERSION} starting...")
 
     signal.signal(signal.SIGINT, signal_handler)
 
