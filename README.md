@@ -69,20 +69,47 @@ GROQ_API_KEY=tu_groq_api_key
 
 ```
 MiraiDroid/
-├── miraidroid.py      # Main bot
-├── plugins/           # Plugins (auto-load)
-├── skills/            # Skills
-├── tools/             # Tools
-├── tests/             # Tests
-├── data/              # Datos (memory, db)
-├── logs/              # Logs
-├── backups/           # Backups auto
-├── downloads/         # Descargas
-├── .env.example       # Template credenciales
-├── requirements.txt   # Dependencias
-├── SOUL.md            # Identidad
+├── src/                 # Core del proyecto
+│   ├── __init__.py      # Exports centralizados
+│   ├── config.py        # Carga .env y credenciales
+│   ├── constants.py     # PERSONAS, ALIASES, DIRS
+│   ├── database.py      # SQLite wrapper
+│   ├── memory.py        # Memory + ActivityLog
+│   ├── crypto.py        # Encryption
+│   ├── utils.py         # is_owner, is_windows, helpers
+│   ├── stats.py         # Stats tracking
+│   ├── rate_limiter.py  # Rate limiting
+│   ├── system_tools.py  # FileManager, GitManager, ProcessManager, etc.
+│   ├── plugin_manager.py
+│   └── skill_manager.py
+├── services/            # Lógica de negocio pura
+│   ├── ai.py            # MiniMax + Groq fallback
+│   ├── web_search.py    # Tavily + DuckDuckGo
+│   ├── heartbeat.py
+│   ├── scheduler.py
+│   ├── health.py
+│   ├── backup.py
+│   ├── code_exec.py
+│   ├── weather.py
+│   ├── url_shortener.py
+│   ├── pastebin.py
+│   ├── rss.py
+│   ├── summarizer.py
+│   └── reminders.py
+├── handlers/            # Telegram handlers
+│   ├── commands.py      # Todos los comandos
+│   ├── callbacks.py
+│   ├── messages.py      # Router + AI
+│   ├── documents.py
+│   ├── voice.py
+│   └── errors.py
+├── plugins/             # Plugins (auto-load)
+├── bot.py               # Assembly del bot
+├── main.py              # Entry point
+├── SOUL.md              # Identidad
 ├── README.md
-└── CHANGELOG.md
+├── requirements.txt
+└── .env                 # Credenciales (nunca en código)
 ```
 
 ## Auto-start en Termux
