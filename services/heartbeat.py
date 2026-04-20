@@ -34,26 +34,8 @@ class Heartbeat:
             pass
 
     def get_stats(self):
-        from src.utils import is_windows
-        import subprocess
-
-        if is_windows():
-            return f"🛡️ *Heartbeat v{self.get_version()}*"
-        else:
-            try:
-                disk = subprocess.check_output("df -h / | tail -1 | awk '{print $3}'", shell=True, text=True).strip()
-                disk_pct = subprocess.check_output("df -h / | tail -1 | awk '{print $5}'", shell=True, text=True).strip()
-                ram_used = subprocess.check_output("free -h | grep Mem | awk '{print $3}'", shell=True, text=True).strip()
-                ram_pct = subprocess.check_output("free | grep Mem | awk '{print int($3/$2*100)}'", shell=True, text=True).strip()
-                uptime = subprocess.check_output("uptime | awk '{print $3}'", shell=True, text=True).strip()
-                load = subprocess.check_output("uptime | awk '{print $10}'", shell=True, text=True).strip()
-                temp = subprocess.check_output("cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo 'N/A'", shell=True, text=True).strip()
-                if temp.isdigit():
-                    temp = f"{int(temp)/1000:.1f}°C"
-            except:
-                return f"🛡️ *Heartbeat v{self.get_version()}*"
-
-        return f"🛡️ *Heartbeat v{self.get_version()}*"
+        from src.system_tools import system_info
+        return f"🛡️ *Heartbeat v{self.get_version()}*\n\n{system_info.get_all()}"
 
     def get_version(self):
         from src.config import VERSION

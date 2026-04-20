@@ -6,9 +6,149 @@ import sys
 import subprocess
 import hashlib
 import re
-import sqlite3
+import platform
 from pathlib import Path
 from src.utils import is_windows, is_android
+
+
+class SystemInfo:
+    """Platform-agnostic system info (disk, RAM, uptime, load)"""
+
+    @staticmethod
+    def get_disk():
+        """Get disk usage - works on Windows and Unix"""
+        try:
+            if is_windows():
+                try:
+                    # Try wmic first
+                    result = subprocess.check_output(
+                        'wmic logicaldisk get size,freespace,caption /format:list',
+                        shell=True, text=True, stderr=subprocess.DEVNULL
+                    )
+                    for line in result.split("\n"):
+                        if 'Caption' in line and 'C:' in line:
+                            try:
+                                freespace = int(line.split("=")[-1].strip())
+                                for l2 in result.split("\n"):
+                                    if 'Size' in l2 and 'FreeSpace' not in l2:
+                                        totalspace = int(l2.split("=")[-1].strip())
+                                        if totalspace > 0:
+                                            used_pct = int((1 - freespace/totalspace) * 100)
+                                            return f"C: {totalspace/1024**3:.0f}GB, {used_pct}% usado"
+                            except:
+                                pass
+                            break
+                except:
+                    pass
+                # Fallback: use PowerShell for Windows
+                try:
+                    result = subprocess.check_output(
+                        'powershell -Command "Get-PSDrive C | Select-Object -Property Used,Free | Format-List"',
+                        shell=True, text=True, stderr=subprocess.DEVNULL
+                    )
+                    # Just return a simple message since parsing PowerShell output is complex
+                    return "C: disponible (PowerShell fallback)"
+                except:
+                    pass
+                return "Disco: no disponible (wmic no encontrado)"
+            else:
+                result = subprocess.check_output("df -h / | tail -1", shell=True, text=True)
+                parts = result.split()
+                if len(parts) >= 5:
+                    total = parts[1]
+                    used = parts[2]
+                    pct = parts[4]
+                    return f"Disco: {used}/{total} ({pct} usado)"
+                return "Disco: no disponible"
+        except Exception as e:
+            return f"Disco: error {e}"
+
+    @staticmethod
+    def get_ram():
+        """Get RAM usage - works on Windows and Unix"""
+        try:
+            if is_windows():
+                try:
+                    result = subprocess.check_output(
+                        'powershell -Command "Get-CimInstance Win32_OperatingSystem | Select-Object -Property TotalVisibleMemorySize,FreePhysicalMemory | Format-List"',
+                        shell=True, text=True, stderr=subprocess.DEVNULL
+                    )
+                    total_mem = 0
+                    free_mem = 0
+                    for line in result.split('\n'):
+                        if 'TotalVisibleMemorySize' in line:
+                            try:
+                                total_mem = int(line.split(':')[-1].strip()) / 1024  # KB to MB
+                            except:
+                                pass
+                        if 'FreePhysicalMemory' in line:
+                            try:
+                                free_mem = int(line.split(':')[-1].strip()) / 1024  # KB to MB
+                            except:
+                                pass
+                    if total_mem > 0:
+                        used_mem = total_mem - free_mem
+                        used_pct = int((used_mem / total_mem) * 100)
+                        return f"RAM: {int(used_mem)}MB/{int(total_mem)}MB ({used_pct}% usado)"
+                except:
+                    pass
+                return "RAM: no disponible"
+            else:
+                result = subprocess.check_output("free -h | grep Mem", shell=True, text=True)
+                parts = result.split()
+                if len(parts) >= 3:
+                    return f"RAM: {parts[2]}/{parts[1]} usado"
+                return "RAM: no disponible"
+        except Exception as e:
+            return f"RAM: error {e}"
+
+    @staticmethod
+    def get_uptime():
+        """Get system uptime - works on Windows and Unix"""
+        try:
+            if is_windows():
+                try:
+                    result = subprocess.check_output(
+                        'cmd /c "for /f \"tokens=1-4 delims=: \" %a in (\'net stats srv ^| findstr \"Statistics since\"\') do @echo Boot: %b %c %d"',
+                        shell=True, text=True, stderr=subprocess.DEVNULL
+                    )
+                    if result.strip():
+                        return f"Uptime: {result.strip()}"
+                except:
+                    pass
+                return "Uptime: no disponible (net stats failed)"
+            else:
+                result = subprocess.check_output("uptime -s", shell=True, text=True)
+                return f"Uptime: Boot {result.strip()}"
+        except Exception as e:
+            return f"Uptime: error {e}"
+
+    @staticmethod
+    def get_load():
+        """Get system load average - Unix only, returns N/A on Windows"""
+        try:
+            if is_windows():
+                return "Load: Load: N/A (Windows)"
+            else:
+                load = os.getloadavg() if hasattr(os, 'getloadavg') else None
+                if load:
+                    return f"Load: Load: {load[0]:.1f} {load[1]:.1f} {load[2]:.1f}"
+                return "Load: Load: no disponible"
+        except Exception as e:
+            return f"Load: Error: {e}"
+
+    @staticmethod
+    def get_all():
+        """Get all system info as a formatted string"""
+        return "\n".join([
+            SystemInfo.get_disk(),
+            SystemInfo.get_ram(),
+            SystemInfo.get_uptime(),
+            SystemInfo.get_load()
+        ])
+
+
+system_info = SystemInfo()
 
 
 class FileManager:

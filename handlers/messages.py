@@ -101,13 +101,8 @@ class AutonomousRouter:
             return None
 
     async def handle_sysmon(self, text, update, ctx):
-        import subprocess
-        try:
-            disk = subprocess.check_output("df -h / | tail -1 | awk '{print $3}'", shell=True, text=True).strip()
-            ram = subprocess.check_output("free -h | grep Mem | awk '{print $3}'", shell=True, text=True).strip()
-            return f"Estado del Sistema:\n- Disco: {disk}\n- RAM: {ram}"
-        except:
-            return "No pude obtener stats"
+        from src.system_tools import system_info
+        return f"Estado del Sistema:\n{system_info.get_all()}"
 
     async def handle_time(self, text, update, ctx):
         from datetime import datetime

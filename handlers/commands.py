@@ -48,22 +48,17 @@ async def help_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 async def status_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    from src import is_owner, is_windows
-    if not is_owner(update.effective_user.id):
-        return
+    from src import is_owner
     from src.config import VERSION
     from src.memory import memory
-    try:
-        if is_windows():
-            disk = subprocess.check_output("wmic logicaldisk get size,freespace,caption /format:list 2>nul | findstr C:", shell=True, text=True).strip()
-            disk = "?"
-        else:
-            disk = subprocess.check_output("df -h / | tail -1 | awk '{print $3}'", shell=True, text=True).strip()
-            ram = subprocess.check_output("free -h | grep Mem | awk '{print $3}'", shell=True, text=True).strip()
-            uptime = subprocess.check_output("uptime | awk '{print $3}'", shell=True, text=True).strip()
-    except:
-        disk, ram, uptime = "?", "?", "?"
-    await update.message.reply_text(f"✅ v{VERSION} | 💾 {disk} | 📊 {ram if 'ram' in dir() else '?'} | ⏱️ {uptime if 'uptime' in dir() else '?'} | 👤 {memory.data.get('persona', 'default')}")
+    from src.system_tools import system_info
+
+    if not is_owner(update.effective_user.id):
+        return
+
+    info = system_info.get_all()
+    persona = memory.data.get('persona', 'default')
+    await update.message.reply_text(f"✅ v{VERSION}\n{info}\n👤 {persona}")
 
 
 async def version_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):

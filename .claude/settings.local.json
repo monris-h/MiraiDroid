@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -m py_compile bot.py main.py)"
+      "Bash(python -m py_compile bot.py main.py)",
+      "Bash(python -m py_compile src/system_tools.py services/health.py services/heartbeat.py handlers/callbacks.py handlers/commands.py handlers/messages.py)"
     ]
   }
 }

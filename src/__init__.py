@@ -9,7 +9,8 @@ from .rate_limiter import rate_limiter, RateLimiter
 from .stats import stats, Stats
 from .system_tools import (
     file_manager, git_manager, docker_monitor, process_manager,
-    battery_monitor, app_manager, network_tools, screenshot, image_analyzer, natural_exec
+    battery_monitor, app_manager, network_tools, screenshot, image_analyzer, natural_exec,
+    system_info, SystemInfo
 )
 from .plugin_manager import plugin_manager, PluginManager
 from .skill_manager import skill_manager, SkillManager
