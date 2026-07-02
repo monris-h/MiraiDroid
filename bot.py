@@ -1,6 +1,7 @@
 """
 Bot assembly - construye el telegram.ext.Application y registra todos los handlers
 """
+import asyncio
 import logging
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler
 
@@ -153,6 +154,18 @@ def build_app():
     # Register cron jobs
     cron_scheduler.add_job("heartbeat", 1800, heartbeat.beat)
     cron_scheduler.add_job("health_check", 1800, health_checker.check)
+
+    # Start cron scheduler as a background task (runs alongside the bot)
+    async def post_init(application):
+        asyncio.create_task(cron_scheduler.run(application))
+        logger.info("Cron scheduler started in background")
+
+    async def post_shutdown(application):
+        cron_scheduler.running = False
+        logger.info("Cron scheduler stopped")
+
+    app.post_init = post_init
+    app.post_shutdown = post_shutdown
 
     logger.info("MiraiDroid built successfully")
 

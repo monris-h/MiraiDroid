@@ -13,6 +13,11 @@ venv/
 env/
 .venv/
 
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
 # Logs
 logs/
 *.log
@@ -44,3 +49,5 @@ Thumbs.db
 
 # OpenClaw (no compartir)
 .openclaw/
+# Legacy code is tracked in git (moved from miraidroid.py v5.0.0)
+# but excluded from new development

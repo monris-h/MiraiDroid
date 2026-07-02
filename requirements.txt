@@ -1,3 +1,25 @@
+# Telegram bot framework
 python-telegram-bot>=20.0
-requests>=2.28.0
+
+# HTTP async
 aiohttp>=3.8.0
+
+# HTTP sync (used for startup notification and restart)
+requests>=2.28.0
+
+# .env parsing (more robust than the manual parser)
+python-dotenv>=1.0.0
+
+# Real encryption (replaces the XOR+Base64 "crypto")
+cryptography>=41.0.0
+
+# Image processing (for vision features)
+Pillow>=10.0.0
+
+# Local Whisper fallback for voice transcription
+# Comment this out if you don't need offline transcription
+# openai-whisper>=20231117
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0

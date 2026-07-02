@@ -86,18 +86,38 @@ class AI:
 
 
 class SelfImprover:
-    """Self-improvement via AI - modifica el código fuente"""
+    """Self-improvement via AI - modifica archivos del proyecto"""
     @staticmethod
     async def improve(request: str) -> str:
+        """
+        Improve a specific source file based on a user request.
+        Usage: /improve <filename> <request>
+        Defaults to improving bot.py if no filename is provided.
+        """
         from src.config import BASE_DIR
 
-        current_code = (BASE_DIR / "miraidroid.py").read_text()
-        prompt = f"""Eres un programador experto en Python. El usuario quiere: {request}
+        # Parse: /improve <filename> <rest of request>
+        # or just /improve <request> -> defaults to bot.py
+        parts = request.split(maxsplit=1) if request else []
+        if parts and (BASE_DIR / parts[0]).is_file() and parts[0].endswith(".py"):
+            filename = parts[0]
+            actual_request = parts[1] if len(parts) > 1 else "improve this code"
+        else:
+            filename = "bot.py"
+            actual_request = request or "improve this code"
+
+        target_file = BASE_DIR / filename
+        if not target_file.exists():
+            return f"❌ Archivo no encontrado: {filename}"
+
+        current_code = target_file.read_text()
+        prompt = f"""Eres un programador experto en Python. El usuario quiere: {actual_request}
+Archivo a modificar: {filename}
 Código actual (primeros 3000 caracteres):
 ```python
 {current_code[:3000]}
 ```
-Proporciona ONLY el código mejorado completo. Sin explicaciones."""
+Proporciona ONLY el código mejorado completo del archivo. Sin explicaciones."""
 
         response = await AI.think(prompt)
 
@@ -105,9 +125,12 @@ Proporciona ONLY el código mejorado completo. Sin explicaciones."""
             from src.memory import activity_log
             from services.backup import backup_manager
 
-            backup_manager.create_backup(f"improve: {request[:30]}")
-            (BASE_DIR / "miraidroid.py").write_text(response)
-            activity_log.log("SELF_IMPROVE", request)
-            return f"✅ ¡Código mejorado!\n\nBackup automático creado.\n\nPreview:\n```python\n{response[:1000]}...\n```"
+            backup_manager.create_backup(f"{filename}:improve")
+            target_file.write_text(response)
+            activity_log.log("SELF_IMPROVE", f"{filename}: {actual_request[:50]}")
+            return (f"✅ ¡Código mejorado en `{filename}`!\n\n"
+                    f"Backup automático creado.\n\n"
+                    f"Preview:\n```python\n{response[:1000]}...\n```\n\n"
+                    f"⚠️ Reinicia el bot con /restart para aplicar los cambios.")
 
         return response

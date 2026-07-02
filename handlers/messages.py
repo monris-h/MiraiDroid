@@ -34,6 +34,14 @@ class AutonomousRouter:
                 "keywords": ["que hora es", "what time", "fecha hoy"],
                 "handler": "handle_time", "strict": True
             },
+            "notes": {
+                "keywords": ["anota esto", "apunta que", "toma nota", "recuerda que ", "nota: ", "nota que "],
+                "handler": "handle_notes", "strict": False
+            },
+            "todos": {
+                "keywords": ["agrega a mis tareas", "tarea pendiente:", "tarea nueva:", "pendiente:", "necesito hacer "],
+                "handler": "handle_todos", "strict": False
+            },
         }
 
     async def route(self, text, update, ctx):
@@ -110,24 +118,31 @@ class AutonomousRouter:
         return f"Hora actual: {now.strftime('%H:%M:%S')}\nFecha: {now.strftime('%Y-%m-%d')}"
 
     async def handle_notes(self, text, update, ctx):
-        note = text.lower()
-        for kw in ["nota", "notas", "anota", "apuntar", "recuerda"]:
-            note = note.replace(kw, "").strip()
+        note = text
+        for kw in ["anota esto", "apunta que", "toma nota", "recuerda que", "nota:", "nota que"]:
+            note = note.replace(kw, "", 1)
+        note = note.strip().rstrip(".,;:")
         if len(note) < 3:
             return None
-        memory.data.setdefault("notes", []).append({"text": note, "date": __import__('time').strftime("%Y-%m-%d %H:%M")})
+        memory.data.setdefault("notes", []).append(
+            {"text": note, "date": __import__('time').strftime("%Y-%m-%d %H:%M")}
+        )
         memory.save()
-        return f"Nota guardada: {note[:100]}"
+        return f"📝 Nota guardada: _{note[:100]}_"
 
     async def handle_todos(self, text, update, ctx):
-        todo = text.lower()
-        for kw in ["tarea", "pendiente", "necesito", "debo", "hacer"]:
-            todo = todo.replace(kw, "").strip()
+        todo = text
+        for kw in ["agrega a mis tareas", "tarea pendiente:", "tarea nueva:",
+                   "pendiente:", "necesito hacer"]:
+            todo = todo.replace(kw, "", 1)
+        todo = todo.strip().rstrip(".,;:")
         if len(todo) < 3:
             return None
-        memory.data.setdefault("todos", []).append({"text": todo, "done": False, "date": __import__('time').strftime("%Y-%m-%d %H:%M")})
+        memory.data.setdefault("todos", []).append(
+            {"text": todo, "done": False, "date": __import__('time').strftime("%Y-%m-%d %H:%M")}
+        )
         memory.save()
-        return f"To-do agregado: {todo[:100]}"
+        return f"✅ To-do agregado: _{todo[:100]}_"
 
 
 autonomous_router = AutonomousRouter()

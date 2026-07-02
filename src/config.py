@@ -4,11 +4,12 @@ Configuración central - carga .env y credenciales
 import os
 from pathlib import Path
 
-# Project root - donde está main.py y miraidroid.py
+# Project root - donde está main.py
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 ENV_FILE = PROJECT_ROOT / ".env"
 BASE_DIR = PROJECT_ROOT
-VERSION = "5.8.0"
+VERSION = "5.9.0"
+
 
 def load_env():
     """Load config from .env file - ALL CREDENTIALS MUST BE IN .ENV"""
@@ -18,11 +19,19 @@ def load_env():
             "- TOKEN\n- MINIMAX_KEY\n- OWNER_ID\n- TAVILY_API_KEY\n- GROQ_API_KEY"
         )
 
+    # Use python-dotenv when available, otherwise fall back to manual parsing
     config = {}
-    for line in ENV_FILE.read_text().splitlines():
-        if "=" in line and not line.startswith("#"):
-            key, val = line.split("=", 1)
-            config[key.strip()] = val.strip().strip('"').strip("'")
+    try:
+        from dotenv import dotenv_values
+        raw = dotenv_values(ENV_FILE)
+        for k, v in raw.items():
+            if v is not None:
+                config[k.strip()] = str(v).strip().strip('"').strip("'")
+    except ImportError:
+        for line in ENV_FILE.read_text().splitlines():
+            if "=" in line and not line.startswith("#"):
+                key, val = line.split("=", 1)
+                config[key.strip()] = val.strip().strip('"').strip("'")
 
     required = ["TOKEN", "MINIMAX_KEY", "OWNER_ID", "TAVILY_API_KEY", "GROQ_API_KEY"]
     missing = [k for k in required if k not in config or not config[k]]
@@ -30,6 +39,7 @@ def load_env():
         raise RuntimeError(f"Missing required .env keys: {missing}")
 
     return config
+
 
 CONFIG = load_env()
 TOKEN = CONFIG["TOKEN"]

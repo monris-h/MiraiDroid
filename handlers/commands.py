@@ -101,8 +101,11 @@ async def restart_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await ctx.application.stop()
 
     import sys
+    import platform
+    # Use "python" on Windows, "python3" on Unix (Termux/Linux)
+    python_cmd = "python" if platform.system() == "Windows" else "python3"
     subprocess.Popen(
-        [sys.executable, str(BASE_DIR / "miraidroid.py")],
+        [python_cmd, str(BASE_DIR / "main.py")],
         cwd=str(BASE_DIR),
         stdout=open(str(BASE_DIR / "logs" / "miraidroid.log"), "a"),
         stderr=open(str(BASE_DIR / "logs" / "error.log"), "a")
@@ -254,8 +257,24 @@ async def plugins_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if not is_owner(update.effective_user.id):
         return
     info = plugin_manager.list_plugins()
-    msg = f"📦 *Plugins disponibles:*\n• " + "\n• ".join(info["available"]) + f"\n\n🟢 *Cargados:* " + ", ".join(info["loaded"]) if info["loaded"] else ""
-    await update.message.reply_text(msg or "📝 No hay plugins disponibles")
+    available = info.get("available", [])
+    loaded = info.get("loaded", [])
+
+    if not available:
+        await update.message.reply_text("📝 No hay plugins disponibles en `plugins/`")
+        return
+
+    parts = [f"📦 *Plugins disponibles ({len(available)}):*\n"]
+    for p in available:
+        marker = "🟢" if p in loaded else "⚪"
+        parts.append(f"  {marker} {p}")
+
+    if loaded:
+        parts.append(f"\n🟢 *Cargados:* {', '.join(loaded)}")
+    else:
+        parts.append("\n_Ninguno cargado todavía._")
+
+    await update.message.reply_text("\n".join(parts), parse_mode="Markdown")
 
 
 async def load_plugin_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -322,11 +341,26 @@ async def exec_code_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if not is_owner(update.effective_user.id):
         return
     if not ctx.args:
-        await update.message.reply_text("❌ Uso: /exec_code [python|bash] <codigo>")
+        await update.message.reply_text(
+            "❌ Uso:\n"
+            "  /exec_code python <código>\n"
+            "  /exec_code bash <código>\n"
+            "  /exec_code <código>  (asume python)"
+        )
         return
-    lang = ctx.args[0] if ctx.args[0] in ["python", "bash", "shell"] else "python"
-    code = " ".join(ctx.args[1:]) if lang in ctx.args else " ".join(ctx.args)
-    await update.message.reply_text(await code_interpreter.execute(code, lang if "code" in ctx.args[0] else "python"))
+    # Detect language from the first arg only if it matches
+    first = ctx.args[0].lower()
+    if first in ("python", "bash", "shell", "py", "sh"):
+        lang = "bash" if first in ("bash", "shell", "sh") else "python"
+        code = " ".join(ctx.args[1:])
+    else:
+        lang = "python"
+        code = " ".join(ctx.args)
+    if not code.strip():
+        await update.message.reply_text("❌ Falta el código a ejecutar.")
+        return
+    result = await code_interpreter.execute(code, lang)
+    await update.message.reply_text(result[:4000])
 
 
 async def weather_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
