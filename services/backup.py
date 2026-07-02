@@ -19,10 +19,10 @@ class BackupManager:
         agent_file = BASE_DIR / "miraidroid.py"
 
         if agent_file.exists():
-            with open(agent_file, "r") as src:
-                with open(backup_file, "w") as dst:
-                    dst.write(f"# Backup {timestamp} - {reason}\n")
-                    dst.write(src.read())
+                    with open(agent_file, "r", encoding="utf-8") as src:
+                        with open(backup_file, "w", encoding="utf-8") as dst:
+                            dst.write(f"# Backup {timestamp} - {reason}\n")
+                            dst.write(src.read())
 
         backups = sorted(self.backup_dir.glob("v*.py"))
         for old in backups[:-self.max_backups]:
