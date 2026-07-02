@@ -3,10 +3,13 @@ Stats - tracking de mensajes, comandos, errores, uptime
 """
 import json
 import time
+import logging
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
 from src.config import BASE_DIR
+
+logger = logging.getLogger(__name__)
 
 
 class Stats:
@@ -17,14 +20,14 @@ class Stats:
     def load(self):
         if self.stats_file.exists():
             try:
-                return json.loads(self.stats_file.read_text())
-            except:
-                pass
-        return {"start_time": time.time(), "messages": 0, "commands": defaultdict(int), "errors": 0}
+                return json.loads(self.stats_file.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning(f"Could not load stats: {e}")
+        return {"start_time": time.time(), "messages": 0, "commands": {}, "errors": 0}
 
     def save(self):
         self.stats_file.parent.mkdir(parents=True, exist_ok=True)
-        self.stats_file.write_text(json.dumps(self.data, indent=2))
+        self.stats_file.write_text(json.dumps(self.data, indent=2), encoding="utf-8")
 
     def inc(self, key):
         self.data[key] = self.data.get(key, 0) + 1
@@ -43,5 +46,6 @@ class Stats:
                 f"• Mensajes: {self.data['messages']}\n"
                 f"• Comandos: {sum(self.data['commands'].values())}\n"
                 f"• Errores: {self.data.get('errors', 0)}")
+
 
 stats = Stats()
