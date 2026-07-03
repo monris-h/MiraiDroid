@@ -20,6 +20,15 @@ ALIASES = {
     "st": "stats", "rl": "rate_limit",
 }
 
+# Centralized model identifiers (Item 20 of audit 2026-07-02).
+# Change here, not scattered across services/ai.py and src/system_tools.py.
+MODELS = {
+    "primary": "MiniMax-M2.7",        # text generation (MiniMax)
+    "fallback": "llama-3.1-8b-instant",  # Groq fallback
+    "vision": "MiniMax-M2.7",         # image analysis
+    "whisper": "whisper-large-v3",    # Groq transcription
+}
+
 # Directorios del proyecto
 DIRS = [
     BASE_DIR / "skills", BASE_DIR / "tools", BASE_DIR / "backups",

@@ -5,6 +5,8 @@ import json
 import asyncio
 import aiohttp
 from src.memory import memory
+from src.constants import MODELS
+
 
 class AI:
     @staticmethod
@@ -25,7 +27,7 @@ class AI:
             messages.append({"role": "assistant", "content": context})
         messages.append({"role": "user", "content": user_msg})
 
-        data = {"model": "MiniMax-M2.7", "max_tokens": 1024, "messages": messages}
+        data = {"model": MODELS["primary"], "max_tokens": 1024, "messages": messages}
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -69,10 +71,10 @@ class AI:
             url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
             data = {
-                "model": "llama-3.1-8b-instant",
-                "messages": groq_messages,
-                "max_tokens": 1024
-            }
+                            "model": MODELS["fallback"],
+                            "messages": groq_messages,
+                            "max_tokens": 1024
+                        }
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, headers=headers, json=data, timeout=aiohttp.ClientTimeout(total=30)) as resp:

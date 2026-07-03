@@ -7,8 +7,12 @@ import subprocess
 import hashlib
 import re
 import platform
+import logging
 from pathlib import Path
 from src.utils import is_windows, is_android
+from src.constants import MODELS
+
+logger = logging.getLogger(__name__)
 
 
 class SystemInfo:
@@ -288,22 +292,22 @@ class ProcessManager:
             return f"❌ Error: {e}"
 
     @staticmethod
-        def kill(pid):
-            # Validate pid is an integer to prevent shell injection even if shell=True were ever set
-            try:
-                pid_int = int(pid)
-            except (ValueError, TypeError):
-                return f"❌ PID inválido: {pid}"
-            try:
-                if is_windows():
-                    # Use list form (no shell) so the argument cannot be interpreted as a shell command
-                    subprocess.run(["taskkill", "/F", "/PID", str(pid_int)], capture_output=True)
-                    return f"✅ Proceso {pid_int} terminado (Windows)"
-                else:
-                    subprocess.run(["kill", "-9", str(pid_int)], capture_output=True)
-                    return f"✅ Proceso {pid_int} matado"
-            except Exception as e:
-                return f"❌ Error: {e}"
+    def kill(pid):
+        # Validate pid is an integer to prevent shell injection even if shell=True were ever set
+        try:
+            pid_int = int(pid)
+        except (ValueError, TypeError):
+            return f"❌ PID inválido: {pid}"
+        try:
+            if is_windows():
+                # Use list form (no shell) so the argument cannot be interpreted as a shell command
+                subprocess.run(["taskkill", "/F", "/PID", str(pid_int)], capture_output=True)
+                return f"✅ Proceso {pid_int} terminado (Windows)"
+            else:
+                subprocess.run(["kill", "-9", str(pid_int)], capture_output=True)
+                return f"✅ Proceso {pid_int} matado"
+        except Exception as e:
+            return f"❌ Error: {e}"
 
     @staticmethod
     def top(limit=5):
@@ -485,7 +489,7 @@ class ImageAnalyzer:
 
             url = "https://api.minimax.io/anthropic/v1/messages"
             headers = {"Authorization": f"Bearer {MINIMAX_KEY}", "Content-Type": "application/json", "anthropic-version": "2023-06-01"}
-            data = {"model": "MiniMax-M2.7", "max_tokens": 512, "messages": [{"role": "user", "content": [{"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": image_data}}, {"type": "text", "text": prompt}]}]}
+            data = {"model": MODELS["vision"], "max_tokens": 512, "messages": [{"role": "user", "content": [{"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": image_data}}, {"type": "text", "text": prompt}]}]}
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, headers=headers, json=data, timeout=aiohttp.ClientTimeout(total=30)) as resp:

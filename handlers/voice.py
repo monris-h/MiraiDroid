@@ -5,6 +5,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from src import is_owner, memory, activity_log
 from src.config import BASE_DIR, GROQ_API_KEY
+from src.constants import MODELS
 
 
 async def voice_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -30,7 +31,7 @@ async def voice_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             async with aiohttp.ClientSession() as session:
                 form = aiohttp.FormData()
                 form.add_field("file", audio_data, filename="voice.ogg", content_type="audio/ogg")
-                form.add_field("model", "whisper-large-v3")
+                form.add_field("model", MODELS["whisper"])
 
                 async with session.post(
                     "https://api.groq.com/openai/v1/audio/transcriptions",
