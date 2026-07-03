@@ -2,6 +2,7 @@
 Message handler - autonomous router + natural exec + AI fallback
 """
 import re
+import time
 from telegram import Update
 from telegram.ext import ContextTypes
 from src import is_owner, memory, activity_log, stats, rate_limiter, ALIASES, file_manager
@@ -196,7 +197,7 @@ class AutonomousRouter:
         if len(note) < 3:
             return None
         memory.data.setdefault("notes", []).append(
-            {"text": note, "date": __import__('time').strftime("%Y-%m-%d %H:%M")}
+            {"text": note, "date": time.strftime("%Y-%m-%d %H:%M")}
         )
         memory.save()
         return f"📝 Nota guardada: _{note[:100]}_"
@@ -210,7 +211,7 @@ class AutonomousRouter:
         if len(todo) < 3:
             return None
         memory.data.setdefault("todos", []).append(
-            {"text": todo, "done": False, "date": __import__('time').strftime("%Y-%m-%d %H:%M")}
+            {"text": todo, "done": False, "date": time.strftime("%Y-%m-%d %H:%M")}
         )
         memory.save()
         return f"✅ To-do agregado: _{todo[:100]}_"

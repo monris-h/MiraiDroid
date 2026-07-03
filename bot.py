@@ -25,7 +25,7 @@ from handlers.commands import (
     heartbeat_cmd, heartbeat_on_cmd, heartbeat_off_cmd, heartbeat_stats_cmd,
     cron_list_cmd, cron_enable_cmd, cron_disable_cmd,
     agent_check_cmd, screenshot_cmd,
-    rss_cmd, summarize_cmd, remind_cmd, reminders_cmd
+    rss_cmd, summarize_cmd, remind_cmd, reminders_cmd,
 )
 from handlers.callbacks import callback_handler
 from handlers.messages import msg_handler
@@ -38,9 +38,51 @@ from services.scheduler import cron_scheduler
 from services.heartbeat import heartbeat
 from services.health import health_checker
 
+# Declarative command registry. Adding a new command = one line here.
+# (cmd_name, handler) — see handlers/commands.py for handler bodies.
+COMMAND_REGISTRY = [
+    # Info
+    ("start", start_cmd), ("help", help_cmd), ("status", status_cmd),
+    ("version", version_cmd), ("uptime", uptime_cmd), ("agent_check", agent_check_cmd),
+    # System
+    ("ps", ps_cmd), ("kill", kill_cmd), ("top", top_cmd), ("ping", ping_cmd),
+    ("dns", dns_cmd), ("ports", ports_cmd), ("battery", battery_cmd), ("apps", apps_cmd),
+    # Files
+    ("files", files_cmd), ("read", read_cmd), ("write", write_cmd), ("find", find_cmd),
+    # Git
+    ("git_status", git_status_cmd), ("git_pull", git_pull_cmd), ("git_commit", git_commit_cmd),
+    ("git_push", git_push_cmd), ("git_log", git_log_cmd),
+    # Docker
+    ("docker_ps", docker_ps_cmd), ("docker_stats", docker_stats_cmd), ("docker_logs", docker_logs_cmd),
+    # Plugin
+    ("plugins", plugins_cmd), ("load_plugin", load_plugin_cmd),
+    # AI & Learning
+    ("persona", persona_cmd), ("learn", learn_cmd), ("forget", forget_cmd),
+    ("improve", improve_cmd), ("exec_code", exec_code_cmd),
+    # Web
+    ("weather", weather_cmd), ("shorten", shorten_cmd), ("rss", rss_cmd), ("summarize", summarize_cmd),
+    # Data
+    ("paste", paste_cmd), ("getpaste", getpaste_cmd),
+    ("remind", remind_cmd), ("reminders", reminders_cmd),
+    # Backup
+    ("backup", backup_cmd), ("backup_list", backup_list_cmd), ("rollback", rollback_cmd),
+    # Security
+    ("encrypt", encrypt_cmd), ("decrypt", decrypt_cmd), ("memory", memory_cmd),
+    ("clear", clear_cmd), ("activity", activity_cmd),
+    # Stats
+    ("stats", stats_cmd), ("rate_limit", rate_limit_cmd),
+    # Heartbeat
+    ("heartbeat", heartbeat_cmd), ("heartbeat_on", heartbeat_on_cmd),
+    ("heartbeat_off", heartbeat_off_cmd), ("heartbeat_stats", heartbeat_stats_cmd),
+    # Cron
+    ("cron_list", cron_list_cmd), ("cron_enable", cron_enable_cmd), ("cron_disable", cron_disable_cmd),
+    # Misc
+    ("screenshot", screenshot_cmd), ("restart", restart_cmd),
+]
+
 
 def build_app():
-    """Construye y configura el Application"""
+    """Build and configure the Application using COMMAND_REGISTRY."""
     setup_logging()
     ensure_dirs()
     logger = logging.getLogger(__name__)
@@ -49,100 +91,14 @@ def build_app():
 
     app = Application.builder().token(TOKEN).build()
 
-    # Info commands
-    app.add_handler(CommandHandler("start", start_cmd))
-    app.add_handler(CommandHandler("help", help_cmd))
-    app.add_handler(CommandHandler("status", status_cmd))
-    app.add_handler(CommandHandler("version", version_cmd))
-    app.add_handler(CommandHandler("uptime", uptime_cmd))
-    app.add_handler(CommandHandler("restart", restart_cmd))
-    app.add_handler(CommandHandler("agent_check", agent_check_cmd))
-
-    # System commands
-    app.add_handler(CommandHandler("ps", ps_cmd))
-    app.add_handler(CommandHandler("kill", kill_cmd))
-    app.add_handler(CommandHandler("top", top_cmd))
-    app.add_handler(CommandHandler("ping", ping_cmd))
-    app.add_handler(CommandHandler("dns", dns_cmd))
-    app.add_handler(CommandHandler("ports", ports_cmd))
-    app.add_handler(CommandHandler("battery", battery_cmd))
-    app.add_handler(CommandHandler("apps", apps_cmd))
-
-    # File commands
-    app.add_handler(CommandHandler("files", files_cmd))
-    app.add_handler(CommandHandler("read", read_cmd))
-    app.add_handler(CommandHandler("write", write_cmd))
-    app.add_handler(CommandHandler("find", find_cmd))
-
-    # Git commands
-    app.add_handler(CommandHandler("git_status", git_status_cmd))
-    app.add_handler(CommandHandler("git_pull", git_pull_cmd))
-    app.add_handler(CommandHandler("git_commit", git_commit_cmd))
-    app.add_handler(CommandHandler("git_push", git_push_cmd))
-    app.add_handler(CommandHandler("git_log", git_log_cmd))
-
-    # Docker commands
-    app.add_handler(CommandHandler("docker_ps", docker_ps_cmd))
-    app.add_handler(CommandHandler("docker_stats", docker_stats_cmd))
-    app.add_handler(CommandHandler("docker_logs", docker_logs_cmd))
-
-    # Plugin commands
-    app.add_handler(CommandHandler("plugins", plugins_cmd))
-    app.add_handler(CommandHandler("load_plugin", load_plugin_cmd))
-
-    # AI & Learning commands
-    app.add_handler(CommandHandler("persona", persona_cmd))
-    app.add_handler(CommandHandler("learn", learn_cmd))
-    app.add_handler(CommandHandler("forget", forget_cmd))
-    app.add_handler(CommandHandler("improve", improve_cmd))
-    app.add_handler(CommandHandler("exec_code", exec_code_cmd))
-
-    # Web commands
-    app.add_handler(CommandHandler("weather", weather_cmd))
-    app.add_handler(CommandHandler("shorten", shorten_cmd))
-    app.add_handler(CommandHandler("rss", rss_cmd))
-    app.add_handler(CommandHandler("summarize", summarize_cmd))
-
-    # Data commands
-    app.add_handler(CommandHandler("paste", paste_cmd))
-    app.add_handler(CommandHandler("getpaste", getpaste_cmd))
-    app.add_handler(CommandHandler("remind", remind_cmd))
-    app.add_handler(CommandHandler("reminders", reminders_cmd))
-
-    # Backup commands
-    app.add_handler(CommandHandler("backup", backup_cmd))
-    app.add_handler(CommandHandler("backup_list", backup_list_cmd))
-    app.add_handler(CommandHandler("rollback", rollback_cmd))
-
-    # Security commands
-    app.add_handler(CommandHandler("encrypt", encrypt_cmd))
-    app.add_handler(CommandHandler("decrypt", decrypt_cmd))
-    app.add_handler(CommandHandler("memory", memory_cmd))
-    app.add_handler(CommandHandler("clear", clear_cmd))
-    app.add_handler(CommandHandler("activity", activity_cmd))
-
-    # Stats commands
-    app.add_handler(CommandHandler("stats", stats_cmd))
-    app.add_handler(CommandHandler("rate_limit", rate_limit_cmd))
-
-    # Heartbeat commands
-    app.add_handler(CommandHandler("heartbeat", heartbeat_cmd))
-    app.add_handler(CommandHandler("heartbeat_on", heartbeat_on_cmd))
-    app.add_handler(CommandHandler("heartbeat_off", heartbeat_off_cmd))
-    app.add_handler(CommandHandler("heartbeat_stats", heartbeat_stats_cmd))
-
-    # Cron commands
-    app.add_handler(CommandHandler("cron_list", cron_list_cmd))
-    app.add_handler(CommandHandler("cron_enable", cron_enable_cmd))
-    app.add_handler(CommandHandler("cron_disable", cron_disable_cmd))
-
-    # Screenshot
-    app.add_handler(CommandHandler("screenshot", screenshot_cmd))
+    # Register all commands from the declarative list
+    for cmd_name, handler in COMMAND_REGISTRY:
+        app.add_handler(CommandHandler(cmd_name, handler))
 
     # Callbacks
     app.add_handler(CallbackQueryHandler(callback_handler))
 
-    # Message handlers
+    # Message handlers (order matters: more specific first)
     app.add_handler(MessageHandler(filters.Document.ALL, doc_handler))
     app.add_handler(MessageHandler(filters.PHOTO, photo_handler))
     app.add_handler(MessageHandler(filters.VOICE, voice_handler))
@@ -167,11 +123,9 @@ def build_app():
     app.post_init = post_init
     app.post_shutdown = post_shutdown
 
-    logger.info("MiraiDroid built successfully")
-
+    logger.info(f"MiraiDroid built successfully ({len(COMMAND_REGISTRY)} commands registered)")
     return app
 
 
-# Export app builder
 def get_app():
     return build_app()

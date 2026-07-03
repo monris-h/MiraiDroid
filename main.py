@@ -69,7 +69,7 @@ if __name__ == "__main__":
                 f"https://api.telegram.org/bot{TOKEN}/sendMessage",
                 params={
                     "chat_id": OWNER_ID,
-                    "text": f"🚨 *ERROR en MiraiDroid*\n\n```\n{error_msg[:3500]}\n```\n⏰ {__import__('time').strftime('%Y-%m-%d %H:%M:%S')}",
+                    "text": f"🚨 *ERROR en MiraiDroid*\n\n```\n{error_msg[:3500]}\n```\n⏰ {time.strftime('%Y-%m-%d %H:%M:%S')}",
                     "parse_mode": "Markdown"
                 },
                 timeout=10
