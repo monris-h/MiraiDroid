@@ -8,7 +8,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 ENV_FILE = PROJECT_ROOT / ".env"
 BASE_DIR = PROJECT_ROOT
-VERSION = "5.9.0"
+VERSION = "6.0.0"
 
 
 def load_env():
