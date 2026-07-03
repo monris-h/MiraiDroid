@@ -3,9 +3,13 @@ Memory - persistencia de conversación, learning, notas, y actividad
 """
 import json
 import time
+import logging
 from pathlib import Path
 from .config import BASE_DIR, VERSION
 from .constants import PERSONAS
+
+logger = logging.getLogger(__name__)
+
 
 class Memory:
     def __init__(self):
@@ -16,15 +20,15 @@ class Memory:
     def load(self):
         if self.file.exists():
             try:
-                return json.loads(self.file.read_text())
-            except:
-                pass
+                return json.loads(self.file.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning(f"Could not load memory: {e}")
         return {"history": [], "skills": [], "tools": [], "persona": "default", "conversations": {}, "learning": [], "version": VERSION}
 
     def save(self):
-        self.file.write_text(json.dumps(self.data, indent=2))
+        self.file.write_text(json.dumps(self.data, indent=2), encoding="utf-8")
         short = {"history": self.data.get("history", [])[-10:], "persona": self.data.get("persona")}
-        self.short_file.write_text(json.dumps(short))
+        self.short_file.write_text(json.dumps(short), encoding="utf-8")
 
     def add_message(self, role, content, conv_id="default"):
         conv = self.data.setdefault("conversations", {}).setdefault(conv_id, {"history": []})
@@ -61,6 +65,7 @@ class Memory:
     def get_persona_prompt(self):
         return PERSONAS.get(self.data.get("persona", "default"), PERSONAS["default"])
 
+
 memory = Memory()
 
 
@@ -72,17 +77,18 @@ class ActivityLog:
     def load(self):
         if self.file.exists():
             try:
-                return json.loads(self.file.read_text())
-            except:
-                pass
+                return json.loads(self.file.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning(f"Could not load activity log: {e}")
         return {"actions": []}
 
     def log(self, action, details=""):
         self.data["actions"].append({"action": action, "details": details, "time": time.strftime("%Y-%m-%d %H:%M:%S")})
         self.data["actions"] = self.data["actions"][-1000:]
-        self.file.write_text(json.dumps(self.data, indent=2))
+        self.file.write_text(json.dumps(self.data, indent=2), encoding="utf-8")
 
     def get_recent(self, limit=20):
         return self.data["actions"][-limit:]
+
 
 activity_log = ActivityLog()

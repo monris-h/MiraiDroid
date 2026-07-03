@@ -1,6 +1,7 @@
 """
 Utilities compartidas - helpers usados en todo el proyecto
 """
+import functools
 import os
 import sys
 import platform
@@ -10,6 +11,23 @@ from .config import BASE_DIR, OWNER_ID
 
 logger = logging.getLogger(__name__)
 
+
+def owner_only(fn):
+    """Decorator: silently drop non-owner updates.
+
+    Use on Telegram handler coroutines. The handler still runs for the
+    owner; for everyone else it returns without replying (consistent with
+    the original `if not is_owner: return` pattern).
+    """
+    @functools.wraps(fn)
+    async def wrapper(update, ctx, *args, **kwargs):
+        from .utils import is_owner
+        if update and update.effective_user and not is_owner(update.effective_user.id):
+            return None
+        return await fn(update, ctx, *args, **kwargs)
+    return wrapper
+
+
 def is_windows():
     return platform.system() == "Windows"
 
@@ -17,7 +35,15 @@ def is_android():
     return platform.system() == "Linux" and os.path.exists("/data/data/com.termux")
 
 def is_owner(user_id):
-    return str(user_id) == OWNER_ID
+    """Owner check. Accepts int or str, returns False on mismatch.
+
+    Compares as int to avoid silent mismatch if OWNER_ID comes in as a
+    different type than user_id (e.g. one str and one int).
+    """
+    try:
+        return int(user_id) == int(OWNER_ID)
+    except (ValueError, TypeError):
+        return False
 
 def ensure_dirs():
     """Crear todos los directorios necesarios"""

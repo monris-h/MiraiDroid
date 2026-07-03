@@ -7,8 +7,12 @@ import subprocess
 import hashlib
 import re
 import platform
+import logging
 from pathlib import Path
 from src.utils import is_windows, is_android
+from src.constants import MODELS
+
+logger = logging.getLogger(__name__)
 
 
 class SystemInfo:
@@ -289,13 +293,19 @@ class ProcessManager:
 
     @staticmethod
     def kill(pid):
+        # Validate pid is an integer to prevent shell injection even if shell=True were ever set
+        try:
+            pid_int = int(pid)
+        except (ValueError, TypeError):
+            return f"❌ PID inválido: {pid}"
         try:
             if is_windows():
-                subprocess.run(f"taskkill /F /PID {pid}", shell=True, capture_output=True)
-                return f"✅ Proceso {pid} terminado (Windows)"
+                # Use list form (no shell) so the argument cannot be interpreted as a shell command
+                subprocess.run(["taskkill", "/F", "/PID", str(pid_int)], capture_output=True)
+                return f"✅ Proceso {pid_int} terminado (Windows)"
             else:
-                subprocess.run(f"kill -9 {pid}", shell=True)
-                return f"✅ Proceso {pid} matado"
+                subprocess.run(["kill", "-9", str(pid_int)], capture_output=True)
+                return f"✅ Proceso {pid_int} matado"
         except Exception as e:
             return f"❌ Error: {e}"
 
@@ -392,40 +402,55 @@ app_manager = AppManager()
 class NetworkTools:
     @staticmethod
     async def ping(host):
+        # Strict host validation to prevent shell injection in either branch
+        if not re.match(r"^[A-Za-z0-9._:-]+$", host):
+            return "❌ Host inválido. Usa letras, dígitos, '.', ':', '-'."
         try:
             if is_windows():
-                result = subprocess.run(f"ping -n 3 {host}", shell=True, capture_output=True, text=True, timeout=10)
+                result = subprocess.run(["ping", "-n", "3", host], capture_output=True, text=True, timeout=10)
             else:
-                result = subprocess.run(f"ping -c 3 {host}", shell=True, capture_output=True, text=True, timeout=10)
+                result = subprocess.run(["ping", "-c", "3", host], capture_output=True, text=True, timeout=10)
             return f"```\n{result.stdout}\n```"
         except Exception as e:
             return f"❌ Error: {e}"
 
     @staticmethod
     async def dns(domain):
+        if not re.match(r"^[A-Za-z0-9._-]+$", domain):
+            return "❌ Dominio inválido. Usa letras, dígitos, '.', '-'."
         try:
-            result = subprocess.run(f"dig {domain} +short", shell=True, capture_output=True, text=True, timeout=10)
+            result = subprocess.run(["dig", domain, "+short"], capture_output=True, text=True, timeout=10)
             return result.stdout or f"❌ No resuelto: {domain}"
         except Exception as e:
             return f"❌ Error: {e}"
 
     @staticmethod
     async def ports(host, ports="22,80,443,3000"):
+        if not re.match(r"^[A-Za-z0-9._:-]+$", host):
+            return "❌ Host inválido. Usa letras, dígitos, '.', ':', '-'."
         try:
             import socket
             results = []
-            for port in ports.split(","):
+            for port_str in ports.split(","):
+                port_str = port_str.strip()
+                if not port_str.isdigit():
+                    results.append(f"❌ {port_str} no es un puerto válido")
+                    continue
+                port = int(port_str)
+                if not (1 <= port <= 65535):
+                    results.append(f"❌ {port} fuera de rango (1-65535)")
+                    continue
                 try:
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.settimeout(1)
-                    result = sock.connect_ex((host, int(port.strip())))
+                    result = sock.connect_ex((host, port))
                     if result == 0:
-                        results.append(f"✅ {port.strip()} ABIERTO")
+                        results.append(f"✅ {port} ABIERTO")
                     else:
-                        results.append(f"❌ {port.strip()} cerrado")
+                        results.append(f"❌ {port} cerrado")
                     sock.close()
-                except:
-                    results.append(f"❌ {port.strip()} error")
+                except Exception:
+                    results.append(f"❌ {port} error")
             return "\n".join(results)
         except Exception as e:
             return f"❌ Error: {e}"
@@ -464,7 +489,7 @@ class ImageAnalyzer:
 
             url = "https://api.minimax.io/anthropic/v1/messages"
             headers = {"Authorization": f"Bearer {MINIMAX_KEY}", "Content-Type": "application/json", "anthropic-version": "2023-06-01"}
-            data = {"model": "MiniMax-M2.7", "max_tokens": 512, "messages": [{"role": "user", "content": [{"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": image_data}}, {"type": "text", "text": prompt}]}]}
+            data = {"model": MODELS["vision"], "max_tokens": 512, "messages": [{"role": "user", "content": [{"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": image_data}}, {"type": "text", "text": prompt}]}]}
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, headers=headers, json=data, timeout=aiohttp.ClientTimeout(total=30)) as resp:

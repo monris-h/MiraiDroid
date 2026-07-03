@@ -1,11 +1,71 @@
 """
 Message handler - autonomous router + natural exec + AI fallback
 """
+import re
+import time
 from telegram import Update
 from telegram.ext import ContextTypes
 from src import is_owner, memory, activity_log, stats, rate_limiter, ALIASES, file_manager
 from services.ai import AI
 from services.web_search import WebSearch as web_search
+
+
+def _shunting_yard_eval(expression: str) -> float:
+    """Tiny safe arithmetic evaluator: digits, + - * / ( ) only.
+
+    Used as a fallback when simpleeval is not installed. ~50 lines of
+    shunting-yard; cannot call functions or access attributes, so the
+    attack surface is essentially zero (input is pre-validated by the
+    caller to match `^[0-9+\\-*/().\\s]+$`).
+    """
+    # Tokenize
+    tokens = re.findall(r"\d+(?:\.\d+)?|[+\-*/()]", expression)
+    if not tokens:
+        raise ValueError("empty expression")
+
+    # Shunting-yard: infix -> RPN
+    prec = {"+": 1, "-": 1, "*": 2, "/": 2}
+    output: list = []
+    ops: list = []
+    for tok in tokens:
+        if tok.replace(".", "").isdigit():
+            output.append(float(tok))
+        elif tok in prec:
+            while ops and ops[-1] != "(" and prec.get(ops[-1], 0) >= prec[tok]:
+                output.append(ops.pop())
+            ops.append(tok)
+        elif tok == "(":
+            ops.append(tok)
+        elif tok == ")":
+            while ops and ops[-1] != "(":
+                output.append(ops.pop())
+            if not ops or ops.pop() != "(":
+                raise ValueError("mismatched parens")
+    while ops:
+        op = ops.pop()
+        if op == "(":
+            raise ValueError("mismatched parens")
+        output.append(op)
+
+    # Evaluate RPN
+    stack: list = []
+    for tok in output:
+        if isinstance(tok, float):
+            stack.append(tok)
+        else:
+            if len(stack) < 2:
+                raise ValueError("invalid expression")
+            b = stack.pop()
+            a = stack.pop()
+            if tok == "+": stack.append(a + b)
+            elif tok == "-": stack.append(a - b)
+            elif tok == "*": stack.append(a * b)
+            elif tok == "/":
+                if b == 0: raise ZeroDivisionError("div by zero")
+                stack.append(a / b)
+    if len(stack) != 1:
+        raise ValueError("invalid expression")
+    return stack[0]
 
 
 class AutonomousRouter:
@@ -94,19 +154,31 @@ class AutonomousRouter:
         return await weather.get(location)
 
     async def handle_calc(self, text, update, ctx):
-        import re, math
-        expression = text.lower()
-        for kw in ["calcula", "cuanto es", " cuanto es"]:
-            expression = expression.replace(kw, "").strip()
-        expression = re.sub(r"[^0-9+\-*/().%^√ ]", "", expression)
-        expression = expression.replace("^", "**").replace("√", "sqrt").replace("por", "*")
-        if not expression:
-            return None
-        try:
-            result = eval(expression, {"__builtins__": {}, "sqrt": math.sqrt})
-            return f"Resultado: {expression} = {result}"
-        except:
-            return None
+            import re
+            expression = text.lower()
+            for kw in ["calcula", "cuanto es", " cuanto es"]:
+                expression = expression.replace(kw, "").strip()
+            # Whitelist: only digits, basic operators, parens, decimal point, percent
+            expression = re.sub(r"[^0-9+\-*/().% ]", "", expression)
+            expression = expression.replace("por", "*")
+            if not expression:
+                return None
+            try:
+                # Replace percent suffix (e.g. "50%" -> "(50/100)") before validation
+                expression = re.sub(r"(\d+(?:\.\d+)?)%", r"(\1/100)", expression)
+                # Validate: only allowed chars after substitution (defense in depth)
+                if not re.match(r"^[0-9+\-*/().\s]+$", expression):
+                    return None
+                # Safe arithmetic via simpleeval (no eval, no builtins, MIT licensed).
+                # Falls back to a tiny shunting-yard parser if simpleeval is missing.
+                try:
+                    from simpleeval import SimpleEval
+                    result = SimpleEval().eval(expression)
+                except ImportError:
+                    result = _shunting_yard_eval(expression)
+                return f"Resultado: {expression} = {result}"
+            except (ValueError, ZeroDivisionError, SyntaxError):
+                return None
 
     async def handle_sysmon(self, text, update, ctx):
         from src.system_tools import system_info
@@ -125,7 +197,7 @@ class AutonomousRouter:
         if len(note) < 3:
             return None
         memory.data.setdefault("notes", []).append(
-            {"text": note, "date": __import__('time').strftime("%Y-%m-%d %H:%M")}
+            {"text": note, "date": time.strftime("%Y-%m-%d %H:%M")}
         )
         memory.save()
         return f"📝 Nota guardada: _{note[:100]}_"
@@ -139,7 +211,7 @@ class AutonomousRouter:
         if len(todo) < 3:
             return None
         memory.data.setdefault("todos", []).append(
-            {"text": todo, "done": False, "date": __import__('time').strftime("%Y-%m-%d %H:%M")}
+            {"text": todo, "done": False, "date": time.strftime("%Y-%m-%d %H:%M")}
         )
         memory.save()
         return f"✅ To-do agregado: _{todo[:100]}_"

@@ -5,6 +5,8 @@ import json
 import asyncio
 import aiohttp
 from src.memory import memory
+from src.constants import MODELS
+
 
 class AI:
     @staticmethod
@@ -25,7 +27,7 @@ class AI:
             messages.append({"role": "assistant", "content": context})
         messages.append({"role": "user", "content": user_msg})
 
-        data = {"model": "MiniMax-M2.7", "max_tokens": 1024, "messages": messages}
+        data = {"model": MODELS["primary"], "max_tokens": 1024, "messages": messages}
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -69,10 +71,10 @@ class AI:
             url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
             data = {
-                "model": "llama-3.1-8b-instant",
-                "messages": groq_messages,
-                "max_tokens": 1024
-            }
+                            "model": MODELS["fallback"],
+                            "messages": groq_messages,
+                            "max_tokens": 1024
+                        }
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, headers=headers, json=data, timeout=aiohttp.ClientTimeout(total=30)) as resp:
@@ -88,11 +90,12 @@ class AI:
 class SelfImprover:
     """Self-improvement via AI - modifica archivos del proyecto"""
     @staticmethod
-    async def improve(request: str) -> str:
+    async def improve(request: str, dry_run: bool = False) -> str:
         """
         Improve a specific source file based on a user request.
         Usage: /improve <filename> <request>
         Defaults to improving bot.py if no filename is provided.
+        Pass dry_run=True to preview the diff without writing.
         """
         from src.config import BASE_DIR
 
@@ -110,7 +113,7 @@ class SelfImprover:
         if not target_file.exists():
             return f"❌ Archivo no encontrado: {filename}"
 
-        current_code = target_file.read_text()
+        current_code = target_file.read_text(encoding="utf-8")
         prompt = f"""Eres un programador experto en Python. El usuario quiere: {actual_request}
 Archivo a modificar: {filename}
 Código actual (primeros 3000 caracteres):
@@ -124,9 +127,30 @@ Proporciona ONLY el código mejorado completo del archivo. Sin explicaciones."""
         if "import" in response and "def " in response:
             from src.memory import activity_log
             from services.backup import backup_manager
+            import ast
+
+            # Sanity check: response must parse as valid Python before writing
+            # (extract the first code block if AI wrapped it in markdown fences)
+            candidate = response
+            if "```python" in candidate:
+                # Strip the code fence
+                candidate = candidate.split("```python", 1)[1].split("```", 1)[0]
+            try:
+                ast.parse(candidate)
+            except SyntaxError as e:
+                return (f"❌ La IA generó código con errores de sintaxis. No se aplicó.\n"
+                        f"   SyntaxError: {e.msg} (línea {e.lineno})\n\n"
+                        f"Preview:\n```python\n{response[:500]}\n```")
+
+            if dry_run:
+                return (f"🔍 *Dry-run: NO se escribió nada.*\n\n"
+                        f"Archivo: `{filename}`\n"
+                        f"Backup que se crearía: `v<ts>_<filename>-improve.py`\n\n"
+                        f"Preview del código generado:\n"
+                        f"```python\n{response[:1000]}...\n```")
 
             backup_manager.create_backup(f"{filename}:improve")
-            target_file.write_text(response)
+            target_file.write_text(response, encoding="utf-8")
             activity_log.log("SELF_IMPROVE", f"{filename}: {actual_request[:50]}")
             return (f"✅ ¡Código mejorado en `{filename}`!\n\n"
                     f"Backup automático creado.\n\n"

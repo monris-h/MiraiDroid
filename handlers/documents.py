@@ -1,6 +1,7 @@
 """
 Document and photo handlers - file uploads and image analysis
 """
+import time
 from telegram import Update
 from telegram.ext import ContextTypes
 from src import is_owner, activity_log
@@ -31,7 +32,7 @@ async def photo_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("📷 Analizando...")
 
     file = await photo.get_file()
-    path = BASE_DIR / "downloads" / f"photo_{__import__('time').time():.0f}.jpg"
+    path = BASE_DIR / "downloads" / f"photo_{time.time():.0f}.jpg"
     path.parent.mkdir(parents=True, exist_ok=True)
     await file.download_to_drive(path)
 
